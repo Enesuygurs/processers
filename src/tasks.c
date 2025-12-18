@@ -143,5 +143,6 @@ int task_is_timeout(TaskInfo* task, int current_time) {
     if (task == NULL) return 0;
     
     int timeout_time = task->arrival_time + MAX_TASK_TIME;
-    return (current_time >= timeout_time && task->state != TASK_STATE_TERMINATED);
+    /* > kullan, >= degil - deadline gecildikten sonra timeout */
+    return (current_time > timeout_time && task->state != TASK_STATE_TERMINATED);
 }

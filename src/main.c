@@ -102,6 +102,7 @@ void vSchedulerTask(void* pvParameters) {
                     /* Gorev devam ediyorsa */
                     if (task_to_run->remaining_time > 0) {
                         print_task_status(task_to_run, "yurutuluyor");
+                        /* Timeout kontrolu (yurutuluyor'dan sonra) */
                         check_timeouts();
                     }
                 }
@@ -110,6 +111,7 @@ void vSchedulerTask(void* pvParameters) {
                 task_terminate(task_to_run, g_current_time);
                 g_completed_tasks++;
                 print_task_status(task_to_run, "sonlandi");
+                /* Timeout kontrolu (sonlandi'dan sonra) */
                 check_timeouts();
                 
                 g_context_switches++;

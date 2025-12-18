@@ -86,14 +86,36 @@ int find_highest_priority_queue(void) {
 
 void print_task_status(TaskInfo* task, const char* status) {
     if (task == NULL) return;
-    printf("%s%.4f sn proses %-12s (id:%04d oncelik:%d kalan sure:%d sn)%s\n",
-        task->color_code,
-        (float)g_current_time,
-        status,
-        task->task_id,
-        task->current_priority,
-        task->remaining_time,
-        COLOR_RESET);
+    
+    /* Türkçe durum metinleri */
+    const char* turkish_status = status;
+    int extra_tab = 0;
+    
+    if (strcmp(status, "basladi") == 0) { turkish_status = "başladı"; extra_tab = 1; }
+    else if (strcmp(status, "askida") == 0) { turkish_status = "askıda"; extra_tab = 1; }
+    else if (strcmp(status, "yurutuluyor") == 0) { turkish_status = "yürütülüyor"; extra_tab = 0; }
+    else if (strcmp(status, "sonlandi") == 0) { turkish_status = "sonlandı"; extra_tab = 1; }
+    else if (strcmp(status, "zamanasimi") == 0) { turkish_status = "zamanaşımı"; extra_tab = 0; }
+    
+    if (extra_tab) {
+        printf("%s%.4f sn\tproses %s\t\t(id:%04d\töncelik:%d\tkalan süre:%d sn)%s\n",
+            task->color_code,
+            (float)g_current_time,
+            turkish_status,
+            task->task_id,
+            task->current_priority,
+            task->remaining_time,
+            COLOR_RESET);
+    } else {
+        printf("%s%.4f sn\tproses %s\t(id:%04d\töncelik:%d\tkalan süre:%d sn)%s\n",
+            task->color_code,
+            (float)g_current_time,
+            turkish_status,
+            task->task_id,
+            task->current_priority,
+            task->remaining_time,
+            COLOR_RESET);
+    }
     fflush(stdout);
 }
 
@@ -121,17 +143,23 @@ void check_timeouts(void) {
         if (task->state == TASK_STATE_WAITING) continue;
         if (task->state == TASK_STATE_RUNNING) continue;  /* Calisan gorev timeout olmaz */
         
-        /* task_is_timeout fonksiyonu kullaniliyor */
-        if (task_is_timeout(task, g_current_time)) {
-            /* Gorev hic baslamadiysa veya deadline gecmisse */
-            if (task->start_time == -1) {
+        /* Timeout zamani: arrival_time + 20 saniye */
+        int timeout_time = task->arrival_time + MAX_TASK_TIME;
+        
+        /* Gorev hic baslamadiysa: deadline aninda veya sonrasinda timeout */
+        if (task->start_time == -1) {
+            if (g_current_time >= timeout_time) {
                 print_task_status(task, "zamanasimi");
                 task->timeout_printed = 1;
                 task_terminate(task, g_current_time);
                 g_completed_tasks++;
-            } else {
+            }
+        }
+        /* Gorev basladi ama askida kaldiysa: deadline gectikten sonra timeout */
+        else {
+            if (g_current_time > timeout_time) {
                 int last_run_time = task->start_time + task->executed_time;
-                int timeout_time = task->arrival_time + MAX_TASK_TIME;
+                /* Son calisma deadline'dan en az 3 saniye onceyse -> timeout */
                 if (last_run_time < timeout_time - 2) {
                     print_task_status(task, "zamanasimi");
                     task->timeout_printed = 1;
