@@ -62,8 +62,6 @@ DynamicQueue g_priority_queues[MAX_PRIORITY_LEVEL];
 void vSchedulerTask(void* pvParameters) {
     (void)pvParameters;
     
-    printf("\nTerminal veya UART ciktisinda asagidaki gibi bir sira gozlemlenir:\n\n");
-    
     /* En son gorev varis zamanini bul */
     int last_arrival = 0;
     for (int i = 0; i < g_task_count; i++) {
@@ -205,16 +203,6 @@ void vSchedulerTask(void* pvParameters) {
     
     g_simulation_running = 0;
     
-    /* Istatistikleri yazdir */
-    printf("\n");
-    printf("SIMULASYON ISTATISTIKLERI:\n");
-    printf("-----------------------------------------------------------------------\n");
-    printf("  Toplam Simulasyon Suresi : %d saniye\n", g_current_time);
-    printf("  Toplam Gorev Sayisi      : %d\n", g_task_count);
-    printf("  Tamamlanan Gorev Sayisi  : %d\n", g_completed_tasks);
-    printf("  Baglam Degisim Sayisi    : %d\n", g_context_switches);
-    printf("-----------------------------------------------------------------------\n");
-    
     /* Simulasyonu sonlandir */
     vTaskEndScheduler();
 }
@@ -265,11 +253,6 @@ int main(int argc, char* argv[]) {
         return 1;
     }
     
-    printf("==========================================================\n");
-    printf("  FreeRTOS Gorev Siralayici Simulasyonu\n");
-    printf("  4 Seviyeli Oncelikli Gorevlendirici (MLFQ + FCFS)\n");
-    printf("==========================================================\n\n");
-    
     /* Kuyruklari baslat */
     init_queues();
     
@@ -290,7 +273,6 @@ int main(int argc, char* argv[]) {
     );
     
     /* FreeRTOS scheduler'i baslat */
-    printf("[BILGI] FreeRTOS Scheduler baslatiliyor...\n");
     vTaskStartScheduler();
     
     /* Scheduler sonlandi - normal cikis */

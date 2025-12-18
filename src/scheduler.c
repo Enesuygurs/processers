@@ -205,6 +205,5 @@ int load_tasks_from_file(const char* filename) {
     fclose(file);
     g_task_count = task_id;
     
-    printf("[BILGI] %d gorev yuklendi.\n", g_task_count);
     return task_id;
 }
