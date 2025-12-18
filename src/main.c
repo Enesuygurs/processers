@@ -85,20 +85,16 @@ void vSchedulerTask(void* pvParameters) {
             task_to_run = queue_remove(PRIORITY_REALTIME);
             
             if (task_to_run != NULL && task_to_run->state != TASK_STATE_TERMINATED) {
-                /* Ilk calistirma ise */
-                if (task_to_run->start_time == -1) {
-                    task_to_run->start_time = g_current_time;
-                }
+                /* Gorevi baslat - task_start fonksiyonu kullaniliyor */
+                task_start(task_to_run, g_current_time);
                 print_task_status(task_to_run, "basladi");
-                
-                task_to_run->state = TASK_STATE_RUNNING;
                 
                 /* RT gorev tamamlanana kadar calistir */
                 while (task_to_run->remaining_time > 0) {
                     vTaskDelay(pdMS_TO_TICKS(TIME_QUANTUM_MS));
                     g_current_time++;
-                    task_to_run->remaining_time--;
-                    task_to_run->executed_time++;
+                    /* task_execute fonksiyonu kullaniliyor */
+                    task_execute(task_to_run);
                     
                     /* Varis kontrolu */
                     check_arriving_tasks();
@@ -110,9 +106,8 @@ void vSchedulerTask(void* pvParameters) {
                     }
                 }
                 
-                /* RT gorev tamamlandi */
-                task_to_run->state = TASK_STATE_TERMINATED;
-                task_to_run->completion_time = g_current_time;
+                /* RT gorev tamamlandi - task_terminate fonksiyonu kullaniliyor */
+                task_terminate(task_to_run, g_current_time);
                 g_completed_tasks++;
                 print_task_status(task_to_run, "sonlandi");
                 check_timeouts();
@@ -140,43 +135,42 @@ void vSchedulerTask(void* pvParameters) {
             task_to_run = queue_remove(queue_index);
             
             if (task_to_run != NULL && task_to_run->state != TASK_STATE_TERMINATED) {
-                /* Ilk calistirma ise */
-                if (task_to_run->start_time == -1) {
-                    task_to_run->start_time = g_current_time;
+                /* Gorevi baslat - task_start fonksiyonu kullaniliyor */
+                int first_run = (task_to_run->start_time == -1);
+                task_start(task_to_run, g_current_time);
+                
+                if (first_run) {
                     print_task_status(task_to_run, "basladi");
                 } else {
-                    /* Devam eden gorev - ayni mesaj */
+                    /* Devam eden gorev */
                     print_task_status(task_to_run, "basladi");
                 }
                 
-                task_to_run->state = TASK_STATE_RUNNING;
-                
-                /* 1 saniye calistir (time quantum = 1) */
+                /* 1 saniye calistir (time quantum = 1) - task_execute kullaniliyor */
                 vTaskDelay(pdMS_TO_TICKS(TIME_QUANTUM_MS));
                 g_current_time++;
-                task_to_run->remaining_time--;
-                task_to_run->executed_time++;
+                task_execute(task_to_run);
                 
                 /* Varis kontrolu */
                 check_arriving_tasks();
                 
                 /* Gorev tamamlandi mi? */
                 if (task_to_run->remaining_time == 0) {
-                    task_to_run->state = TASK_STATE_TERMINATED;
-                    task_to_run->completion_time = g_current_time;
+                    /* task_terminate fonksiyonu kullaniliyor */
+                    task_terminate(task_to_run, g_current_time);
                     g_completed_tasks++;
                     print_task_status(task_to_run, "sonlandi");
                 } else {
-                    /* Quantum bitti - askiya al */
-                    task_to_run->state = TASK_STATE_SUSPENDED;
+                    /* Quantum bitti - task_suspend fonksiyonu kullaniliyor */
+                    task_suspend(task_to_run);
                     
                     /* Onceligi dusur */
                     demote_priority(task_to_run);
                     
                     print_task_status(task_to_run, "askida");
                     
-                    /* Kuyruga geri ekle */
-                    task_to_run->state = TASK_STATE_READY;
+                    /* Kuyruga geri ekle - task_resume fonksiyonu kullaniliyor */
+                    task_resume(task_to_run);
                     queue_add(task_to_run->current_priority, task_to_run);
                 }
                 
@@ -202,6 +196,9 @@ void vSchedulerTask(void* pvParameters) {
     }
     
     g_simulation_running = 0;
+    
+    /* Simulasyon istatistiklerini yazdir */
+    print_statistics();
     
     /* Simulasyonu sonlandir */
     vTaskEndScheduler();

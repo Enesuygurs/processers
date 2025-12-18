@@ -98,4 +98,25 @@ void print_task_status(TaskInfo* task, const char* status);
 
 int load_tasks_from_file(const char* filename);
 
+/*=============================================================================
+ * GOREV YARDIMCI FONKSIYONLARI (tasks.c)
+ *============================================================================*/
+
+const char* get_task_state_string(TaskState state);
+const char* get_task_type_string(TaskType type);
+void print_task_info(TaskInfo* task);
+void task_start(TaskInfo* task, int current_time);
+void task_suspend(TaskInfo* task);
+void task_resume(TaskInfo* task);
+void task_terminate(TaskInfo* task, int current_time);
+int task_execute(TaskInfo* task);
+int task_is_ready(TaskInfo* task, int current_time);
+int task_is_timeout(TaskInfo* task, int current_time);
+
+/*=============================================================================
+ * ISTATISTIK FONKSIYONLARI
+ *============================================================================*/
+
+void print_statistics(void);
+
 #endif /* SCHEDULER_H */

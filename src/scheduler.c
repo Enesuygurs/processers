@@ -121,29 +121,23 @@ void check_timeouts(void) {
         if (task->state == TASK_STATE_WAITING) continue;
         if (task->state == TASK_STATE_RUNNING) continue;  /* Calisan gorev timeout olmaz */
         
-        /* Timeout kontrolu: arrival_time + 20 saniye gectiyse */
-        int timeout_time = task->arrival_time + MAX_TASK_TIME;
-        
-        /* Gorev hic baslamadiysa */
-        if (task->start_time == -1) {
-            if (g_current_time >= timeout_time) {
+        /* task_is_timeout fonksiyonu kullaniliyor */
+        if (task_is_timeout(task, g_current_time)) {
+            /* Gorev hic baslamadiysa veya deadline gecmisse */
+            if (task->start_time == -1) {
                 print_task_status(task, "zamanasimi");
                 task->timeout_printed = 1;
-                task->state = TASK_STATE_TERMINATED;
-                task->completion_time = g_current_time;
+                task_terminate(task, g_current_time);
                 g_completed_tasks++;
-            }
-        }
-        /* Gorev basladi ama deadline'a kadar beklemek zorunda kaldiysa */
-        else {
-            int last_run_time = task->start_time + task->executed_time;
-            /* Deadline gectiyse VE son calisma deadline - 3'ten onceyse -> timeout */
-            if (g_current_time > timeout_time && last_run_time < timeout_time - 2) {
-                print_task_status(task, "zamanasimi");
-                task->timeout_printed = 1;
-                task->state = TASK_STATE_TERMINATED;
-                task->completion_time = g_current_time;
-                g_completed_tasks++;
+            } else {
+                int last_run_time = task->start_time + task->executed_time;
+                int timeout_time = task->arrival_time + MAX_TASK_TIME;
+                if (last_run_time < timeout_time - 2) {
+                    print_task_status(task, "zamanasimi");
+                    task->timeout_printed = 1;
+                    task_terminate(task, g_current_time);
+                    g_completed_tasks++;
+                }
             }
         }
     }
@@ -206,4 +200,96 @@ int load_tasks_from_file(const char* filename) {
     g_task_count = task_id;
     
     return task_id;
+}
+
+/*=============================================================================
+ * ISTATISTIK FONKSIYONLARI
+ *============================================================================*/
+
+void print_statistics(void) {
+    printf("\n%s", COLOR_RESET);
+    printf("================================================================================\n");
+    printf("                         SIMULASYON ISTATISTIKLERI                              \n");
+    printf("================================================================================\n\n");
+    
+    int total_turnaround = 0;
+    int total_waiting = 0;
+    int total_response = 0;
+    int total_burst = 0;
+    int completed_count = 0;
+    int timeout_count = 0;
+    int rt_count = 0;
+    int user_count = 0;
+    
+    printf("%-6s %-14s %-8s %-8s %-10s %-10s %-10s %-12s\n",
+           "ID", "TIP", "VARIS", "BURST", "BASLAMA", "BITIS", "BEKLEME", "DURUM");
+    printf("--------------------------------------------------------------------------------\n");
+    
+    for (int i = 0; i < g_task_count; i++) {
+        TaskInfo* task = &g_tasks[i];
+        
+        const char* type_str = get_task_type_string(task->type);
+        const char* state_str = get_task_state_string(task->state);
+        
+        int turnaround = 0;
+        int waiting = 0;
+        int response = 0;
+        
+        if (task->state == TASK_STATE_TERMINATED && !task->timeout_printed) {
+            turnaround = task->completion_time - task->arrival_time;
+            waiting = turnaround - task->burst_time;
+            if (waiting < 0) waiting = 0;
+            if (task->start_time >= 0) {
+                response = task->start_time - task->arrival_time;
+            }
+            
+            total_turnaround += turnaround;
+            total_waiting += waiting;
+            total_response += response;
+            total_burst += task->burst_time;
+            completed_count++;
+            
+            if (task->type == TASK_TYPE_REALTIME) rt_count++;
+            else user_count++;
+        } else if (task->timeout_printed) {
+            timeout_count++;
+        }
+        
+        printf("%s%-6d %-14s %-8d %-8d %-10d %-10d %-10d %-12s%s\n",
+               task->color_code,
+               task->task_id,
+               type_str,
+               task->arrival_time,
+               task->burst_time,
+               task->start_time,
+               task->completion_time,
+               waiting,
+               state_str,
+               COLOR_RESET);
+    }
+    
+    printf("--------------------------------------------------------------------------------\n\n");
+    
+    printf("OZET BILGILER:\n");
+    printf("  Toplam Gorev Sayisi     : %d\n", g_task_count);
+    printf("  Tamamlanan Gorevler     : %d\n", completed_count);
+    printf("  Zaman Asimi Gorevler    : %d\n", timeout_count);
+    printf("  Gercek Zamanli Gorevler : %d\n", rt_count);
+    printf("  Kullanici Gorevleri     : %d\n", user_count);
+    printf("  Context Switch Sayisi   : %d\n", g_context_switches);
+    printf("  Toplam Simulasyon Suresi: %d saniye\n", g_current_time);
+    
+    if (completed_count > 0) {
+        printf("\nPERFORMANS METRIKLERI:\n");
+        printf("  Ortalama Donus Suresi   : %.2f saniye\n", (float)total_turnaround / completed_count);
+        printf("  Ortalama Bekleme Suresi : %.2f saniye\n", (float)total_waiting / completed_count);
+        printf("  Ortalama Yanit Suresi   : %.2f saniye\n", (float)total_response / completed_count);
+        
+        /* CPU Kullanim = Toplam Burst / Toplam Simulasyon Suresi * 100 */
+        float cpu_usage = (g_current_time > 0) ? ((float)total_burst / g_current_time * 100) : 0;
+        printf("  CPU Kullanim Orani      : %.1f%%\n", cpu_usage);
+        printf("  Throughput              : %.2f gorev/saniye\n", (float)completed_count / g_current_time);
+    }
+    
+    printf("\n================================================================================\n");
 }
