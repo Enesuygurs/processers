@@ -22,68 +22,45 @@ Bu proje, FreeRTOS'un görev sıralayıcısının PC üzerinde POSIX (Linux) vey
 ```
 FreeRTOS_PC_Scheduler/
 ├── FreeRTOS/
-│   ├── include/           # FreeRTOS header dosyaları
-│   ├── source/            # FreeRTOS kernel kaynak kodları
+│   ├── include/                    # FreeRTOS header dosyaları
+│   ├── source/                     # FreeRTOS kernel kaynak kodları
 │   └── portable/
-│       ├── MSVC-MingW/    # Windows portu
-│       ├── ThirdParty/GCC/Posix/  # Linux portu
-│       └── MemMang/       # Bellek yönetimi (heap_4.c)
+│       ├── MSVC-MingW/             # Windows portu
+│       ├── ThirdParty/GCC/Posix/   # Linux POSIX portu
+│       └── MemMang/                # Bellek yönetimi (heap_4.c)
 ├── src/
-│   ├── main_freertos.c    # FreeRTOS kullanan ana program
-│   ├── FreeRTOSConfig.h   # FreeRTOS yapılandırması
-│   ├── main.c             # Alternatif (pthread tabanlı)
-│   ├── scheduler.c        # Scheduler implementasyonu
-│   ├── scheduler.h        # Header dosyası
-│   └── tasks.c            # Görev fonksiyonları
-├── CMakeLists.txt         # CMake build dosyası
-├── Makefile               # Linux için Makefile
-├── giris.txt              # Görev listesi giriş dosyası
-└── README.md              # Bu dosya
+│   ├── main.c                      # Ana program ve scheduler görevi
+│   ├── scheduler.c                 # Scheduler implementasyonu
+│   ├── scheduler.h                 # Header dosyası
+│   ├── tasks.c                     # Görev fonksiyonları
+│   └── FreeRTOSConfig.h            # FreeRTOS yapılandırması
+├── Makefile                        # Derleme dosyası
+├── giris.txt                       # Görev listesi giriş dosyası
+└── README.md                       # Bu dosya
 ```
 
-## 🛠️ Derleme
-
-### Windows (Visual Studio ile)
-
-```powershell
-# Build klasörü oluştur
-mkdir build
-cd build
-
-# CMake ile yapılandır
-cmake .. -G "Visual Studio 17 2022"
-
-# Derle
-cmake --build . --config Release
-
-# Çalıştır
-.\Release\freertos_sim.exe ..\giris.txt
-```
+## 🛠️ Derleme ve Çalıştırma
 
 ### Windows (MinGW ile)
 
 ```bash
-mkdir build && cd build
-cmake .. -G "MinGW Makefiles"
-cmake --build .
-./freertos_sim.exe ../giris.txt
+cd FreeRTOS_PC_Scheduler
+make
+./freertos_sim giris.txt
 ```
 
 ### Linux / WSL
 
 ```bash
-mkdir build && cd build
-cmake ..
+cd FreeRTOS_PC_Scheduler
 make
-./freertos_sim ../giris.txt
+./freertos_sim giris.txt
 ```
 
-### Makefile ile (Linux)
+### Temizlik
 
 ```bash
 make clean
-make
-./freertos_sim giris.txt
 ```
 
 ## 📝 Giriş Dosyası Formatı

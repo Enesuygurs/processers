@@ -41,6 +41,7 @@ endif
 SOURCES := \
 	src/main.c \
 	src/scheduler.c \
+	src/tasks.c \
 	FreeRTOS/source/tasks.c \
 	FreeRTOS/source/queue.c \
 	FreeRTOS/source/list.c \

@@ -146,7 +146,7 @@ void vSchedulerTask(void* pvParameters) {
                     print_task_status(task_to_run, "basladi");
                 } else {
                     /* Devam eden gorev */
-                    print_task_status(task_to_run, "basladi");
+                    print_task_status(task_to_run, "devam");
                 }
                 
                 task_to_run->state = TASK_STATE_RUNNING;
