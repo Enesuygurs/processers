@@ -39,3 +39,14 @@
 
 # debug information files
 *.dwo
+
+# Temporary files
+*.tmp
+*.log
+*.aux
+*.out
+*.toc
+*.nav
+build/
+*.exe
+.vscode/
