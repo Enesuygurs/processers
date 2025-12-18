@@ -2,11 +2,14 @@
  * @file FreeRTOSConfig.h
  * @brief FreeRTOS Yapilandirma Dosyasi
  * 
- * POSIX (Linux/Windows WSL) ortami icin FreeRTOS ayarlari
+ * Windows (MSVC/MinGW) ve Linux (POSIX) ortami icin FreeRTOS ayarlari
+ * 4 Seviyeli Oncelikli Gorev Siralayici Simulasyonu
  */
 
 #ifndef FREERTOS_CONFIG_H
 #define FREERTOS_CONFIG_H
+
+#include <stdio.h>
 
 /*-----------------------------------------------------------
  * Uygulama ozel tanimlamalar
@@ -18,8 +21,8 @@
 #define configUSE_TICKLESS_IDLE                 0
 #define configCPU_CLOCK_HZ                      ( ( unsigned long ) 1000000 )
 #define configTICK_RATE_HZ                      ( ( TickType_t ) 1000 )
-#define configMAX_PRIORITIES                    ( 4 )  /* 4 oncelik seviyesi: 0, 1, 2, 3 */
-#define configMINIMAL_STACK_SIZE                ( ( unsigned short ) 4096 )
+#define configMAX_PRIORITIES                    ( 5 )  /* 0=idle, 1-4 uygulama oncelikleri */
+#define configMINIMAL_STACK_SIZE                ( ( unsigned short ) 256 )
 #define configMAX_TASK_NAME_LEN                 ( 32 )
 #define configUSE_16_BIT_TICKS                  0
 #define configIDLE_SHOULD_YIELD                 1
@@ -38,12 +41,12 @@
 /* Memory allocation ayarlari */
 #define configSUPPORT_STATIC_ALLOCATION         1
 #define configSUPPORT_DYNAMIC_ALLOCATION        1
-#define configTOTAL_HEAP_SIZE                   ( ( size_t ) ( 1024 * 1024 ) )  /* 1 MB heap */
+#define configTOTAL_HEAP_SIZE                   ( ( size_t ) ( 256 * 1024 ) )  /* 256 KB heap */
 #define configAPPLICATION_ALLOCATED_HEAP        0
 
 /* Hook fonksiyonlari */
-#define configUSE_IDLE_HOOK                     0
-#define configUSE_TICK_HOOK                     0
+#define configUSE_IDLE_HOOK                     1
+#define configUSE_TICK_HOOK                     1
 #define configCHECK_FOR_STACK_OVERFLOW          0
 #define configUSE_MALLOC_FAILED_HOOK            0
 #define configUSE_DAEMON_TASK_STARTUP_HOOK      0
@@ -63,16 +66,8 @@
 #define configTIMER_QUEUE_LENGTH                10
 #define configTIMER_TASK_STACK_DEPTH            ( configMINIMAL_STACK_SIZE * 2 )
 
-/* POSIX portu icin gerekli */
-#define configUSE_POSIX_ERRNO                   1
-
-/* Interrupt oncelikleri (POSIX icin dummy) */
-#define configKERNEL_INTERRUPT_PRIORITY         255
-#define configMAX_SYSCALL_INTERRUPT_PRIORITY    191
-#define configMAX_API_CALL_INTERRUPT_PRIORITY   191
-
 /* Assert tanimlama */
-#define configASSERT( x ) if( ( x ) == 0 ) { printf("ASSERT FAILED!\n"); for(;;); }
+#define configASSERT( x ) if( ( x ) == 0 ) { printf("ASSERT FAILED: %s, line %d\n", __FILE__, __LINE__); for(;;); }
 
 /* API fonksiyonlarini dahil et */
 #define INCLUDE_vTaskPrioritySet                1
@@ -92,14 +87,5 @@
 #define INCLUDE_xTaskAbortDelay                 1
 #define INCLUDE_xTaskGetHandle                  1
 #define INCLUDE_xTaskResumeFromISR              1
-
-/* Static allocation icin gerekli fonksiyonlar */
-void vApplicationGetIdleTaskMemory( StaticTask_t **ppxIdleTaskTCBBuffer,
-                                    StackType_t **ppxIdleTaskStackBuffer,
-                                    uint32_t *pulIdleTaskStackSize );
-
-void vApplicationGetTimerTaskMemory( StaticTask_t **ppxTimerTaskTCBBuffer,
-                                     StackType_t **ppxTimerTaskStackBuffer,
-                                     uint32_t *pulTimerTaskStackSize );
 
 #endif /* FREERTOS_CONFIG_H */
