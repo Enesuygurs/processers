@@ -119,14 +119,32 @@ void check_timeouts(void) {
         if (task->state == TASK_STATE_TERMINATED) continue;
         if (task->timeout_printed) continue;
         if (task->state == TASK_STATE_WAITING) continue;
+        if (task->state == TASK_STATE_RUNNING) continue;  /* Calisan gorev timeout olmaz */
         
+        /* Timeout kontrolu: arrival_time + 20 saniye gectiyse */
         int timeout_time = task->arrival_time + MAX_TASK_TIME;
-        if (g_current_time >= timeout_time) {
-            print_task_status(task, "zamanasimi");
-            task->timeout_printed = 1;
-            task->state = TASK_STATE_TERMINATED;
-            task->completion_time = g_current_time;
-            g_completed_tasks++;
+        
+        /* Gorev hic baslamadiysa */
+        if (task->start_time == -1) {
+            if (g_current_time >= timeout_time) {
+                print_task_status(task, "zamanasimi");
+                task->timeout_printed = 1;
+                task->state = TASK_STATE_TERMINATED;
+                task->completion_time = g_current_time;
+                g_completed_tasks++;
+            }
+        }
+        /* Gorev basladi ama deadline'a kadar beklemek zorunda kaldiysa */
+        else {
+            int last_run_time = task->start_time + task->executed_time;
+            /* Deadline gectiyse VE son calisma deadline - 3'ten onceyse -> timeout */
+            if (g_current_time > timeout_time && last_run_time < timeout_time - 2) {
+                print_task_status(task, "zamanasimi");
+                task->timeout_printed = 1;
+                task->state = TASK_STATE_TERMINATED;
+                task->completion_time = g_current_time;
+                g_completed_tasks++;
+            }
         }
     }
 }
@@ -135,9 +153,8 @@ void demote_priority(TaskInfo* task) {
     if (task == NULL) return;
     if (task->type == TASK_TYPE_REALTIME) return;
     
-    if (task->current_priority < PRIORITY_LOW) {
-        task->current_priority++;
-    }
+    /* Onceligi surekli dusur (sinir yok) */
+    task->current_priority++;
 }
 
 /*=============================================================================

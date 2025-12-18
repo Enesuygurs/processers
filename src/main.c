@@ -148,7 +148,7 @@ void vSchedulerTask(void* pvParameters) {
                     print_task_status(task_to_run, "basladi");
                 } else {
                     /* Devam eden gorev */
-                    print_task_status(task_to_run, "devam");
+                    print_task_status(task_to_run, "basladi");
                 }
                 
                 task_to_run->state = TASK_STATE_RUNNING;
@@ -161,7 +161,6 @@ void vSchedulerTask(void* pvParameters) {
                 
                 /* Varis kontrolu */
                 check_arriving_tasks();
-                check_timeouts();
                 
                 /* Gorev tamamlandi mi? */
                 if (task_to_run->remaining_time == 0) {
