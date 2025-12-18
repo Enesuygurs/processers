@@ -145,8 +145,8 @@ void vSchedulerTask(void* pvParameters) {
                     task_to_run->start_time = g_current_time;
                     print_task_status(task_to_run, "basladi");
                 } else {
-                    /* Devam eden gorev */
-                    print_task_status(task_to_run, "devam");
+                    /* Devam eden gorev - ayni mesaj */
+                    print_task_status(task_to_run, "basladi");
                 }
                 
                 task_to_run->state = TASK_STATE_RUNNING;
