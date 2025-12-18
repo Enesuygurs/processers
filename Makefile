@@ -64,14 +64,14 @@ all: $(EXECUTABLE)
 
 # Build executable
 $(EXECUTABLE): $(BUILD_OBJECTS) | $(BUILD_DIR)
-	@echo "Linking $@..."
+	@echo "$@ baglaniyor..."
 	@$(CC) $(BUILD_OBJECTS) $(LDFLAGS) -o $@
-	@echo "Build completed: $@"
+	@echo "Derleme tamamlandi: $@"
 
 # Compile source files
 $(BUILD_DIR)/%.o: %.c | $(BUILD_DIR)
 	@mkdir -p $(dir $@)
-	@echo "Compiling $<..."
+	@echo "$< derleniyor..."
 	@$(CC) $(CFLAGS) -c $< -o $@
 
 # Create build directory
@@ -80,10 +80,10 @@ $(BUILD_DIR):
 
 # Clean build artifacts
 clean:
-	@echo "Cleaning build files..."
+	@echo "Derleme dosyalari temizleniyor..."
 	@rm -rf $(BUILD_DIR)
 	@rm -f $(EXECUTABLE)
-	@echo "Clean completed."
+	@echo "Temizlik tamamlandi."
 
 # Help
 help:
