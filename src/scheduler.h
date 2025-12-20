@@ -113,10 +113,4 @@ int task_execute(TaskInfo* task);
 int task_is_ready(TaskInfo* task, int current_time);
 int task_is_timeout(TaskInfo* task, int current_time);
 
-/*=============================================================================
- * ISTATISTIK FONKSIYONLARI
- *============================================================================*/
-
-void print_statistics(void);
-
 #endif /* SCHEDULER_H */

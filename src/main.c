@@ -77,7 +77,7 @@ void vSchedulerTask(void* pvParameters) {
     while (g_simulation_running) {
         TaskInfo* task_to_run = NULL;
         
-        /* Zamanaşımı kontrolu */
+        /* Zamantasimi kontrolu */
         check_timeouts();
         
         /* 1. GERCEK ZAMANLI GOREVLERI KONTROL ET (FCFS - tamamlanana kadar calistir) */
@@ -198,9 +198,6 @@ void vSchedulerTask(void* pvParameters) {
     }
     
     g_simulation_running = 0;
-    
-    /* Simulasyon istatistiklerini yazdir */
-    print_statistics();
     
     /* Simulasyonu sonlandir */
     vTaskEndScheduler();

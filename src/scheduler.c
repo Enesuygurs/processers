@@ -86,36 +86,14 @@ int find_highest_priority_queue(void) {
 
 void print_task_status(TaskInfo* task, const char* status) {
     if (task == NULL) return;
-    
-    /* Türkçe durum metinleri */
-    const char* turkish_status = status;
-    int extra_tab = 0;
-    
-    if (strcmp(status, "basladi") == 0) { turkish_status = "başladı"; extra_tab = 1; }
-    else if (strcmp(status, "askida") == 0) { turkish_status = "askıda"; extra_tab = 1; }
-    else if (strcmp(status, "yurutuluyor") == 0) { turkish_status = "yürütülüyor"; extra_tab = 0; }
-    else if (strcmp(status, "sonlandi") == 0) { turkish_status = "sonlandı"; extra_tab = 1; }
-    else if (strcmp(status, "zamanasimi") == 0) { turkish_status = "zamanaşımı"; extra_tab = 0; }
-    
-    if (extra_tab) {
-        printf("%s%.4f sn\tproses %s\t\t(id:%04d\töncelik:%d\tkalan süre:%d sn)%s\n",
-            task->color_code,
-            (float)g_current_time,
-            turkish_status,
-            task->task_id,
-            task->current_priority,
-            task->remaining_time,
-            COLOR_RESET);
-    } else {
-        printf("%s%.4f sn\tproses %s\t(id:%04d\töncelik:%d\tkalan süre:%d sn)%s\n",
-            task->color_code,
-            (float)g_current_time,
-            turkish_status,
-            task->task_id,
-            task->current_priority,
-            task->remaining_time,
-            COLOR_RESET);
-    }
+    printf("%s%.4f sn proses %-12s (id:%04d oncelik:%d kalan sure:%d sn)%s\n",
+        task->color_code,
+        (float)g_current_time,
+        status,
+        task->task_id,
+        task->current_priority,
+        task->remaining_time,
+        COLOR_RESET);
     fflush(stdout);
 }
 
@@ -230,94 +208,4 @@ int load_tasks_from_file(const char* filename) {
     return task_id;
 }
 
-/*=============================================================================
- * ISTATISTIK FONKSIYONLARI
- *============================================================================*/
 
-void print_statistics(void) {
-    printf("\n%s", COLOR_RESET);
-    printf("================================================================================\n");
-    printf("                         SIMULASYON ISTATISTIKLERI                              \n");
-    printf("================================================================================\n\n");
-    
-    int total_turnaround = 0;
-    int total_waiting = 0;
-    int total_response = 0;
-    int total_burst = 0;
-    int completed_count = 0;
-    int timeout_count = 0;
-    int rt_count = 0;
-    int user_count = 0;
-    
-    printf("%-6s %-14s %-8s %-8s %-10s %-10s %-10s %-12s\n",
-           "ID", "TIP", "VARIS", "BURST", "BASLAMA", "BITIS", "BEKLEME", "DURUM");
-    printf("--------------------------------------------------------------------------------\n");
-    
-    for (int i = 0; i < g_task_count; i++) {
-        TaskInfo* task = &g_tasks[i];
-        
-        const char* type_str = get_task_type_string(task->type);
-        const char* state_str = get_task_state_string(task->state);
-        
-        int turnaround = 0;
-        int waiting = 0;
-        int response = 0;
-        
-        if (task->state == TASK_STATE_TERMINATED && !task->timeout_printed) {
-            turnaround = task->completion_time - task->arrival_time;
-            waiting = turnaround - task->burst_time;
-            if (waiting < 0) waiting = 0;
-            if (task->start_time >= 0) {
-                response = task->start_time - task->arrival_time;
-            }
-            
-            total_turnaround += turnaround;
-            total_waiting += waiting;
-            total_response += response;
-            total_burst += task->burst_time;
-            completed_count++;
-            
-            if (task->type == TASK_TYPE_REALTIME) rt_count++;
-            else user_count++;
-        } else if (task->timeout_printed) {
-            timeout_count++;
-        }
-        
-        printf("%s%-6d %-14s %-8d %-8d %-10d %-10d %-10d %-12s%s\n",
-               task->color_code,
-               task->task_id,
-               type_str,
-               task->arrival_time,
-               task->burst_time,
-               task->start_time,
-               task->completion_time,
-               waiting,
-               state_str,
-               COLOR_RESET);
-    }
-    
-    printf("--------------------------------------------------------------------------------\n\n");
-    
-    printf("OZET BILGILER:\n");
-    printf("  Toplam Gorev Sayisi     : %d\n", g_task_count);
-    printf("  Tamamlanan Gorevler     : %d\n", completed_count);
-    printf("  Zaman Asimi Gorevler    : %d\n", timeout_count);
-    printf("  Gercek Zamanli Gorevler : %d\n", rt_count);
-    printf("  Kullanici Gorevleri     : %d\n", user_count);
-    printf("  Context Switch Sayisi   : %d\n", g_context_switches);
-    printf("  Toplam Simulasyon Suresi: %d saniye\n", g_current_time);
-    
-    if (completed_count > 0) {
-        printf("\nPERFORMANS METRIKLERI:\n");
-        printf("  Ortalama Donus Suresi   : %.2f saniye\n", (float)total_turnaround / completed_count);
-        printf("  Ortalama Bekleme Suresi : %.2f saniye\n", (float)total_waiting / completed_count);
-        printf("  Ortalama Yanit Suresi   : %.2f saniye\n", (float)total_response / completed_count);
-        
-        /* CPU Kullanim = Toplam Burst / Toplam Simulasyon Suresi * 100 */
-        float cpu_usage = (g_current_time > 0) ? ((float)total_burst / g_current_time * 100) : 0;
-        printf("  CPU Kullanim Orani      : %.1f%%\n", cpu_usage);
-        printf("  Throughput              : %.2f gorev/saniye\n", (float)completed_count / g_current_time);
-    }
-    
-    printf("\n================================================================================\n");
-}
