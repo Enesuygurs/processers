@@ -14,7 +14,7 @@ endif
 # Compiler and Flags
 CC := gcc
 CFLAGS := -Wall -Wextra -std=c11 -Wno-unused-parameter -Wno-missing-field-initializers
-CFLAGS += -I./src -I./FreeRTOS/include -I./FreeRTOS/portable/MSVC-MingW
+CFLAGS += -I./src -I./FreeRTOS/include
 
 # Platform-specific flags
 ifeq ($(DETECTED_OS),Linux)
@@ -25,6 +25,7 @@ ifeq ($(DETECTED_OS),Linux)
 	PORT_SOURCE := $(PORT_DIR)/port.c
 else
 	# Windows (MinGW)
+	CFLAGS += -I./FreeRTOS/portable/MSVC-MingW
 	LDFLAGS := -pthread -lwinmm -lws2_32
 	PORT_DIR := FreeRTOS/portable/MSVC-MingW
 	PORT_SOURCE := $(PORT_DIR)/port.c
