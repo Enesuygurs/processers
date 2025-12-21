@@ -95,16 +95,18 @@ void vSchedulerTask(void* pvParameters) {
                     g_current_time++;
                     /* task_execute fonksiyonu kullaniliyor */
                     task_execute(task_to_run);
+                    task_to_run->last_active_time = g_current_time;
                     
                     /* Varis kontrolu */
                     check_arriving_tasks();
                     
-                    /* Gorev devam ediyorsa */
+                    /* Gorev devam ediyorsa yurutuluyor mesaji */
                     if (task_to_run->remaining_time > 0) {
                         print_task_status(task_to_run, "yurutuluyor");
-                        /* Timeout kontrolu (yurutuluyor'dan sonra) */
-                        check_timeouts();
                     }
+                    
+                    /* Timeout kontrolu - her iterasyonda, yurutuluyor'dan sonra */
+                    check_timeouts();
                 }
                 
                 /* RT gorev tamamlandi - task_terminate fonksiyonu kullaniliyor */
@@ -137,45 +139,46 @@ void vSchedulerTask(void* pvParameters) {
             task_to_run = queue_remove(queue_index);
             
             if (task_to_run != NULL && task_to_run->state != TASK_STATE_TERMINATED) {
-                /* Gorevi baslat - task_start fonksiyonu kullaniliyor */
-                int first_run = (task_to_run->start_time == -1);
                 task_start(task_to_run, g_current_time);
-                
-                if (first_run) {
-                    print_task_status(task_to_run, "basladi");
-                } else {
-                    /* Devam eden gorev */
-                    print_task_status(task_to_run, "basladi");
-                }
-                
-                /* 1 saniye calistir (time quantum = 1) - task_execute kullaniliyor */
-                vTaskDelay(pdMS_TO_TICKS(TIME_QUANTUM_MS));
-                g_current_time++;
-                task_execute(task_to_run);
-                
-                /* Varis kontrolu */
-                check_arriving_tasks();
-                
-                /* Gorev tamamlandi mi? */
-                if (task_to_run->remaining_time == 0) {
-                    /* task_terminate fonksiyonu kullaniliyor */
-                    task_terminate(task_to_run, g_current_time);
-                    g_completed_tasks++;
-                    print_task_status(task_to_run, "sonlandi");
-                } else {
-                    /* Quantum bitti - task_suspend fonksiyonu kullaniliyor */
-                    task_suspend(task_to_run);
-                    
-                    /* Onceligi dusur */
+                print_task_status(task_to_run, "basladi");
+
+                while (task_to_run->remaining_time > 0) {
+                    vTaskDelay(pdMS_TO_TICKS(TIME_QUANTUM_MS));
+                    g_current_time++;
+                    task_execute(task_to_run);
+                    task_to_run->last_active_time = g_current_time;
+
+                    /* Yeni gelenleri ekle */
+                    check_arriving_tasks();
+
+                    if (task_to_run->remaining_time == 0) {
+                        task_terminate(task_to_run, g_current_time);
+                        g_completed_tasks++;
+                        print_task_status(task_to_run, "sonlandi");
+                        break;
+                    }
+
+                    /* Oncelik dusur (her quantum) */
                     demote_priority(task_to_run);
-                    
-                    print_task_status(task_to_run, "askida");
-                    
-                    /* Kuyruga geri ekle - task_resume fonksiyonu kullaniliyor */
-                    task_resume(task_to_run);
-                    queue_add(task_to_run->current_priority, task_to_run);
+
+                    /* Daha yuksek oncelikli varsa veya ayni oncelikte bekleyen varsa kes */
+                    int hpq = find_highest_priority_queue();
+                    int preempt = 0;
+                    if (hpq != -1 && hpq < task_to_run->current_priority) preempt = 1;
+                    else if (hpq == task_to_run->current_priority && !queue_is_empty(hpq)) preempt = 1;
+
+                    if (preempt) {
+                        task_suspend(task_to_run);
+                        print_task_status(task_to_run, "askida");
+                        task_resume(task_to_run);
+                        queue_add(task_to_run->current_priority, task_to_run);
+                        break;
+                    } else {
+                        /* Kesinti yoksa calismaya devam ediyor */
+                        print_task_status(task_to_run, "yurutuluyor");
+                    }
                 }
-                
+
                 g_context_switches++;
                 continue;
             }

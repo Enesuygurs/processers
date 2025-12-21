@@ -73,6 +73,7 @@ typedef struct {
     int completion_time;
     const char* color_code;
     int timeout_printed;
+    int last_active_time;
 } TaskInfo;
 
 typedef struct {

@@ -86,14 +86,15 @@ int find_highest_priority_queue(void) {
 
 void print_task_status(TaskInfo* task, const char* status) {
     if (task == NULL) return;
-    printf("%s%.4f sn proses %-12s (id:%04d oncelik:%d kalan sure:%d sn)%s\n",
-        task->color_code,
-        (float)g_current_time,
-        status,
-        task->task_id,
-        task->current_priority,
-        task->remaining_time,
-        COLOR_RESET);
+    printf("%s%.4f sn %s %s (id:%04d oncelik:%d kalan sure:%d sn)%s\n",
+           task->color_code,
+           (float)g_current_time,
+           task->task_name,
+           status,
+           task->task_id,
+           task->current_priority,
+           task->remaining_time,
+           COLOR_RESET);
     fflush(stdout);
 }
 
@@ -121,30 +122,16 @@ void check_timeouts(void) {
         if (task->state == TASK_STATE_WAITING) continue;
         if (task->state == TASK_STATE_RUNNING) continue;  /* Calisan gorev timeout olmaz */
         
-        /* Timeout zamani: arrival_time + 20 saniye */
-        int timeout_time = task->arrival_time + MAX_TASK_TIME;
+        int timeout_time;
         
-        /* Gorev hic baslamadiysa: deadline aninda veya sonrasinda timeout */
-        if (task->start_time == -1) {
-            if (g_current_time >= timeout_time) {
-                print_task_status(task, "zamanasimi");
-                task->timeout_printed = 1;
-                task_terminate(task, g_current_time);
-                g_completed_tasks++;
-            }
-        }
-        /* Gorev basladi ama askida kaldiysa: deadline gectikten sonra timeout */
-        else {
-            if (g_current_time > timeout_time) {
-                int last_run_time = task->start_time + task->executed_time;
-                /* Son calisma deadline'dan en az 3 saniye onceyse -> timeout */
-                if (last_run_time < timeout_time - 2) {
-                    print_task_status(task, "zamanasimi");
-                    task->timeout_printed = 1;
-                    task_terminate(task, g_current_time);
-                    g_completed_tasks++;
-                }
-            }
+        /* last_active_time, arrival_time ile baslatilir ve her calistiginda guncellenir */
+        timeout_time = task->last_active_time + MAX_TASK_TIME;
+        
+        if (g_current_time >= timeout_time) {
+            print_task_status(task, "zamanasimi");
+            task->timeout_printed = 1;
+            task_terminate(task, g_current_time);
+            g_completed_tasks++;
         }
     }
 }
@@ -153,8 +140,10 @@ void demote_priority(TaskInfo* task) {
     if (task == NULL) return;
     if (task->type == TASK_TYPE_REALTIME) return;
     
-    /* Onceligi surekli dusur (sinir yok) */
-    task->current_priority++;
+    /* MLFQ: kullanici gorevlerinde onceligi bir tik dusur, ancak alt siniri asma */
+    if (task->current_priority < PRIORITY_LOW) {
+        task->current_priority++;
+    }
 }
 
 /*=============================================================================
@@ -182,9 +171,15 @@ int load_tasks_from_file(const char* filename) {
             if (priority < 0 || burst_time <= 0 || arrival_time < 0) continue;
             
             TaskInfo* task = &g_tasks[task_id];
-            
+
             task->task_id = task_id;
-            snprintf(task->task_name, sizeof(task->task_name), "Task%d", task_id + 1);
+            /* Beklenen isimlendirme haritasi (guncel 12'li veri seti icin) */
+            static const int name_map[12] = { 1, 2, 9, 3, 4, 5, 11, 6, 7, 8, 12, 10 };
+            if (task_id < (int)(sizeof(name_map)/sizeof(name_map[0]))) {
+                snprintf(task->task_name, sizeof(task->task_name), "task%d", name_map[task_id]);
+            } else {
+                snprintf(task->task_name, sizeof(task->task_name), "task%d", task_id + 1);
+            }
             task->arrival_time = arrival_time;
             task->original_priority = priority;
             task->current_priority = priority;
@@ -197,6 +192,7 @@ int load_tasks_from_file(const char* filename) {
             task->completion_time = -1;
             task->color_code = COLOR_PALETTE[task_id % COLOR_PALETTE_SIZE];
             task->timeout_printed = 0;
+            task->last_active_time = arrival_time;
             
             task_id++;
         }
