@@ -37,8 +37,8 @@ void task_start(TaskInfo* task, int current_time) {
     if (task == NULL) return;
     
     task->state = TASK_STATE_RUNNING;
-    if (task->start_time == -1) {
-        task->start_time = current_time;
+    if (task->start_time == -1) {  // Ilk kez baslatiliyorsa
+        task->start_time = current_time;  // Baslama zamanini kaydet
     }
 }
 
@@ -64,10 +64,11 @@ void task_terminate(TaskInfo* task, int current_time) {
 int task_execute(TaskInfo* task) {
     if (task == NULL) return -1;
     
-    task->remaining_time--;
-    task->executed_time++;
+    // 1 saniye calistir
+    task->remaining_time--;   // Kalan sureyi azalt
+    task->executed_time++;    // Calistirilan sureyi artir
     
-    return task->remaining_time;
+    return task->remaining_time;  // Kalan sureyi dondur
 }
 
 int task_is_ready(TaskInfo* task, int current_time) {

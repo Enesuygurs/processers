@@ -27,13 +27,14 @@ void queue_add(int priority, TaskInfo* task) {
     if (q->count >= MAX_TASKS) return;
 
     // Sirali ekleme: last_active_time (eski once), sonra task_id
+    // Bu siralamayla en eski aktif olan gorev once calisir
     int pos = q->count;
     while (pos > 0) {
         TaskInfo* prev = q->tasks[pos - 1];
         if (prev == NULL) break;
-        if (prev->last_active_time < task->last_active_time) break;
-        if (prev->last_active_time == task->last_active_time && prev->task_id <= task->task_id) break;
-        q->tasks[pos] = prev;
+        if (prev->last_active_time < task->last_active_time) break;  // Onceki daha eski ise dur
+        if (prev->last_active_time == task->last_active_time && prev->task_id <= task->task_id) break;  // Ayni zamanda id kucukse dur
+        q->tasks[pos] = prev;  // Bir saga kaydir
         pos--;
     }
     q->tasks[pos] = task;
@@ -46,17 +47,19 @@ TaskInfo* queue_remove(int priority) {
     
     // Sonlanmis gorevleri atla
     while (q->count > 0 && q->tasks[0] != NULL && q->tasks[0]->state == TASK_STATE_TERMINATED) {
+        // Sonlanmis gorevi kuyruktan cikar
         for (int i = 0; i < q->count - 1; i++) {
-            q->tasks[i] = q->tasks[i + 1];
+            q->tasks[i] = q->tasks[i + 1];  // Sola kaydir
         }
         q->tasks[--q->count] = NULL;
     }
     
-    if (q->count == 0) return NULL;
+    if (q->count == 0) return NULL;  // Kuyruk bos
     
+    // Bas gorev alinir (FIFO)
     TaskInfo* task = q->tasks[0];
     for (int i = 0; i < q->count - 1; i++) {
-        q->tasks[i] = q->tasks[i + 1];
+        q->tasks[i] = q->tasks[i + 1];  // Tum gorevleri sola kaydir
     }
     q->tasks[--q->count] = NULL;
     
@@ -69,10 +72,12 @@ int queue_is_empty(int priority) {
 }
 
 int find_highest_priority_queue(void) {
+    // 0'dan baslayarak ilk dolu kuyrugun numarasini dondur
+    // Dusuk numara = Yuksek oncelik
     for (int i = 0; i < MAX_PRIORITY_LEVEL; i++) {
         if (!queue_is_empty(i)) return i;
     }
-    return -1;
+    return -1;  // Hic gorev yok
 }
 
 // Yardimci fonksiyonlar
@@ -92,20 +97,23 @@ void print_task_status(TaskInfo* task, const char* status) {
 
 // Gorev yonetim fonksiyonlari
 void check_arriving_tasks(void) {
+    // Suanki zamanda gelmesi gereken gorevleri kuyruklara ekle
     for (int i = 0; i < g_task_count; i++) {
         TaskInfo* task = &g_tasks[i];
         
         if (task->arrival_time == g_current_time && task->state == TASK_STATE_WAITING) {
-            task->state = TASK_STATE_READY;
-            queue_add(task->current_priority, task);
+            task->state = TASK_STATE_READY;  // Hazir durumuna getir
+            queue_add(task->current_priority, task);  // Uygun kuyruğa ekle
         }
     }
 }
 
 void check_timeouts(void) {
+    // Her gorevi kontrol et, timeout olan varsa sonlandir
     for (int i = 0; i < g_task_count; i++) {
         TaskInfo* task = &g_tasks[i];
         
+        // Sonlanan, daha once timeout basilan veya henuz gelmemis gorevleri atla
         if (task->state == TASK_STATE_TERMINATED) continue;
         if (task->timeout_printed) continue;
         if (task->state == TASK_STATE_WAITING) continue;
@@ -113,7 +121,7 @@ void check_timeouts(void) {
         
         int timeout_time;
         
-        // last_active_time her calistiginda guncellenir
+        // last_active_time her calistiginda guncellenir, 20 sn sonrasi timeout
         timeout_time = task->last_active_time + MAX_TASK_TIME;
         
         if (g_current_time >= timeout_time) {
@@ -137,6 +145,7 @@ void demote_priority(TaskInfo* task) {
 
 // Dosya islemleri
 int load_tasks_from_file(const char* filename) {
+    // giris.txt dosyasini oku ve gorevleri yukle
     FILE* file = fopen(filename, "r");
     if (file == NULL) {
         printf("[HATA] Dosya acilamadi: %s\n", filename);
@@ -146,14 +155,17 @@ int load_tasks_from_file(const char* filename) {
     char line[256];
     int task_id = 0;
     
+    // Her satiri oku: arrival_time, priority, burst_time
     while (fgets(line, sizeof(line), file) != NULL && task_id < MAX_TASKS) {
-        if (strlen(line) <= 1) continue;
+        if (strlen(line) <= 1) continue;  // Bos satirlari atla
         
         int arrival_time, priority, burst_time;
         
+        // Satiri parse et (hem bosluklu hem bosluksuz format desteklenir)
         if (sscanf(line, "%d, %d, %d", &arrival_time, &priority, &burst_time) == 3 ||
             sscanf(line, "%d,%d,%d", &arrival_time, &priority, &burst_time) == 3) {
             
+            // Gecersiz degerleri atla
             if (priority < 0 || burst_time <= 0 || arrival_time < 0) continue;
             
             TaskInfo* task = &g_tasks[task_id];
@@ -166,19 +178,20 @@ int load_tasks_from_file(const char* filename) {
             } else {
                 snprintf(task->task_name, sizeof(task->task_name), "task%d", task_id + 1);
             }
+            // Gorev bilgilerini ayarla
             task->arrival_time = arrival_time;
             task->original_priority = priority;
-            task->current_priority = priority;
+            task->current_priority = priority;  // Baslangicta original ile ayni
             task->burst_time = burst_time;
-            task->remaining_time = burst_time;
+            task->remaining_time = burst_time;  // Baslangicta burst ile ayni
             task->executed_time = 0;
-            task->state = TASK_STATE_WAITING;
+            task->state = TASK_STATE_WAITING;   // Henuz gelmedi
             task->type = (priority == PRIORITY_REALTIME) ? TASK_TYPE_REALTIME : TASK_TYPE_USER;
-            task->start_time = -1;
-            task->completion_time = -1;
-            task->color_code = COLOR_PALETTE[task_id % COLOR_PALETTE_SIZE];
+            task->start_time = -1;              // Henuz baslamadi
+            task->completion_time = -1;         // Henuz bitmedi
+            task->color_code = COLOR_PALETTE[task_id % COLOR_PALETTE_SIZE];  // Renkli cikti icin
             task->timeout_printed = 0;
-            task->last_active_time = arrival_time;
+            task->last_active_time = arrival_time;  // Son aktif zaman = varis zamani
             
             task_id++;
         }

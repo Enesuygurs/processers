@@ -44,7 +44,7 @@ DynamicQueue g_priority_queues[MAX_PRIORITY_LEVEL];
 void vSchedulerTask(void* pvParameters) {
     (void)pvParameters;
     
-    // En son gorev varis zamanini bul
+    // En son gorev varis zamanini bul (simulasyon ne zaman sonlanacak)
     int last_arrival = 0;
     for (int i = 0; i < g_task_count; i++) {
         if (g_tasks[i].arrival_time > last_arrival) {
@@ -71,12 +71,12 @@ void vSchedulerTask(void* pvParameters) {
                 task_start(task_to_run, g_current_time);
                 print_task_status(task_to_run, "basladi");
                 
-                // RT gorev tamamlanana kadar calistir
+                // RT gorev tamamlanana kadar kesintisiz calistir (FCFS)
                 while (task_to_run->remaining_time > 0) {
-                    vTaskDelay(pdMS_TO_TICKS(TIME_QUANTUM_MS));
-                    g_current_time++;
-                    task_execute(task_to_run);
-                    task_to_run->last_active_time = g_current_time;
+                    vTaskDelay(pdMS_TO_TICKS(TIME_QUANTUM_MS));  // 1 saniye bekle
+                    g_current_time++;                             // Zamani ilerlet
+                    task_execute(task_to_run);                    // 1 saniye calistir
+                    task_to_run->last_active_time = g_current_time;  // Son aktif zamani guncelle
                     
                     // Varis kontrolu
                     check_arriving_tasks();
@@ -104,9 +104,10 @@ void vSchedulerTask(void* pvParameters) {
         // 2. Kullanici gorevlerini kontrol et (MLFQ)
         int queue_index = find_highest_priority_queue();
         
-        // RT kuyruk zaten yukarida islendi
+        // RT kuyruk zaten yukarida islendi, kullanici kuyruguna gec
         if (queue_index == PRIORITY_REALTIME) {
             queue_index = -1;
+            // Priority 1'den baslayarak ilk dolu kullanici kuyrugunu bul
             for (int i = PRIORITY_HIGH; i < MAX_PRIORITY_LEVEL; i++) {
                 if (!queue_is_empty(i)) {
                     queue_index = i;
@@ -122,11 +123,12 @@ void vSchedulerTask(void* pvParameters) {
                 task_start(task_to_run, g_current_time);
                 print_task_status(task_to_run, "basladi");
 
+                // MLFQ: Her quantum'da preemption kontrolu yap
                 while (task_to_run->remaining_time > 0) {
-                    vTaskDelay(pdMS_TO_TICKS(TIME_QUANTUM_MS));
-                    g_current_time++;
-                    task_execute(task_to_run);
-                    task_to_run->last_active_time = g_current_time;
+                    vTaskDelay(pdMS_TO_TICKS(TIME_QUANTUM_MS));  // 1 saniye bekle
+                    g_current_time++;                             // Zamani ilerlet
+                    task_execute(task_to_run);                    // 1 saniye calistir
+                    task_to_run->last_active_time = g_current_time;  // Son aktif zamani guncelle
 
                     // Yeni gelenleri ekle
                     check_arriving_tasks();
@@ -141,11 +143,11 @@ void vSchedulerTask(void* pvParameters) {
                     // Oncelik dusur (her quantum)
                     demote_priority(task_to_run);
 
-                    // Daha yuksek oncelikli varsa kes
+                    // Preemption kontrolu: Daha yuksek oncelikli veya ayni oncelikte bekleyen var mi
                     int hpq = find_highest_priority_queue();
                     int preempt = 0;
-                    if (hpq != -1 && hpq < task_to_run->current_priority) preempt = 1;
-                    else if (hpq == task_to_run->current_priority && !queue_is_empty(hpq)) preempt = 1;
+                    if (hpq != -1 && hpq < task_to_run->current_priority) preempt = 1;  // Daha yuksek oncelik
+                    else if (hpq == task_to_run->current_priority && !queue_is_empty(hpq)) preempt = 1;  // Ayni oncelikte bekleyen var
 
                     if (preempt) {
                         task_suspend(task_to_run);
