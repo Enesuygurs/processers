@@ -40,9 +40,20 @@ void init_queues(void) {
 void queue_add(int priority, TaskInfo* task) {
     if (priority < 0 || priority >= MAX_PRIORITY_LEVEL || task == NULL) return;
     DynamicQueue* q = &g_priority_queues[priority];
-    if (q->count < MAX_TASKS) {
-        q->tasks[q->count++] = task;
+    if (q->count >= MAX_TASKS) return;
+
+    /* Insert ordered by last_active_time (older first), then task_id */
+    int pos = q->count;
+    while (pos > 0) {
+        TaskInfo* prev = q->tasks[pos - 1];
+        if (prev == NULL) break;
+        if (prev->last_active_time < task->last_active_time) break;
+        if (prev->last_active_time == task->last_active_time && prev->task_id <= task->task_id) break;
+        q->tasks[pos] = prev;
+        pos--;
     }
+    q->tasks[pos] = task;
+    q->count++;
 }
 
 TaskInfo* queue_remove(int priority) {
