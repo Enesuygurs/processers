@@ -49,7 +49,7 @@ struct event * event_create( void )
     {
         ev->event_triggered = false;
         pthread_mutexattr_init( &ev->mutexattr );
-        #ifndef __APPLE__
+        #if defined(__PTHREAD_MUTEX_HAVE_ROBUST) && !defined(__APPLE__)
             pthread_mutexattr_setrobust( &ev->mutexattr, PTHREAD_MUTEX_ROBUST );
         #endif
         pthread_mutex_init( &ev->mutex, &ev->mutexattr );
@@ -73,7 +73,7 @@ bool event_wait( struct event * ev )
 {
     if( pthread_mutex_lock( &ev->mutex ) == EOWNERDEAD )
     {
-        #ifndef __APPLE__
+        #if defined(__PTHREAD_MUTEX_HAVE_ROBUST) && !defined(__APPLE__)
             /* If the thread owning the mutex died, make the mutex consistent. */
             pthread_mutex_consistent( &ev->mutex );
         #endif

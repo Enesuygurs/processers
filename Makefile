@@ -21,7 +21,7 @@ ifeq ($(DETECTED_OS),Linux)
 	CFLAGS += -pthread
 	LDFLAGS := -lpthread -lrt
 	PORT_DIR := FreeRTOS/portable/ThirdParty/GCC/Posix
-	CFLAGS += -I./$(PORT_DIR)
+	CFLAGS += -I./$(PORT_DIR) -I./$(PORT_DIR)/utils
 	PORT_SOURCE := $(PORT_DIR)/port.c
 else
 	# Windows (MinGW)
@@ -49,6 +49,11 @@ SOURCES := \
 	FreeRTOS/source/event_groups.c \
 	FreeRTOS/portable/MemMang/heap_4.c \
 	$(PORT_SOURCE)
+
+# Add POSIX event utilities for Linux builds
+ifeq ($(DETECTED_OS),Linux)
+	SOURCES += FreeRTOS/portable/ThirdParty/GCC/Posix/utils/wait_for_event.c
+endif
 
 # Object files
 OBJECTS := $(SOURCES:.c=.o)
