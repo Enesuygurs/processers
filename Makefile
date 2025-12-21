@@ -1,9 +1,7 @@
-# ============================================================================
-# FreeRTOS PC Scheduler Makefile
-# Supports both Windows (MinGW) and Linux (GCC) builds
-# ============================================================================
+# FreeRTOS PC Siralayici Makefile
+# Windows (MinGW) ve Linux (GCC) derlemelerini destekler
 
-# Detect OS
+# İşletim sistemini algıla
 UNAME_S := $(shell uname -s)
 ifeq ($(OS),Windows_NT)
 	DETECTED_OS := Windows
@@ -11,12 +9,12 @@ else
 	DETECTED_OS := $(UNAME_S)
 endif
 
-# Compiler and Flags
+# Derleyici ve bayraklar
 CC := gcc
 CFLAGS := -Wall -Wextra -std=c11 -Wno-unused-parameter -Wno-missing-field-initializers
 CFLAGS += -I./src -I./FreeRTOS/include
 
-# Platform-specific flags
+# Platform'a özel bayraklar
 ifeq ($(DETECTED_OS),Linux)
 	CFLAGS += -pthread
 	LDFLAGS := -lpthread -lrt
@@ -31,14 +29,14 @@ else
 	PORT_SOURCE := $(PORT_DIR)/port.c
 endif
 
-# Output executable
+# Çıktı yürütülebilir dosyası
 ifeq ($(DETECTED_OS),Windows)
 	EXECUTABLE := freertos_sim.exe
 else
 	EXECUTABLE := freertos_sim
 endif
 
-# Source files
+# Kaynak dosyaları
 SOURCES := \
 	src/main.c \
 	src/scheduler.c \
@@ -51,48 +49,48 @@ SOURCES := \
 	FreeRTOS/portable/MemMang/heap_4.c \
 	$(PORT_SOURCE)
 
-# Add POSIX event utilities for Linux builds
+# Linux derlemeleri için POSIX olay yardımcılarını ekle
 ifeq ($(DETECTED_OS),Linux)
 	SOURCES += FreeRTOS/portable/ThirdParty/GCC/Posix/utils/wait_for_event.c
 endif
 
-# Object files
+# Nesne dosyaları
 OBJECTS := $(SOURCES:.c=.o)
 
-# Build directory
+# Derleme dizini
 BUILD_DIR := build
 BUILD_OBJECTS := $(patsubst %,$(BUILD_DIR)/%,$(OBJECTS))
 
-# Phony targets
+# Sahte hedefler
 .PHONY: all clean help
 
-# Default target
+# Varsayılan hedef
 all: $(EXECUTABLE)
 
-# Build executable
+# Yürütülebilir dosyayı oluştur
 $(EXECUTABLE): $(BUILD_OBJECTS) | $(BUILD_DIR)
 	@echo "$@ baglaniyor..."
 	@$(CC) $(BUILD_OBJECTS) $(LDFLAGS) -o $@
 	@echo "Derleme tamamlandi: $@"
 
-# Compile source files
+# Kaynak dosyaları derle
 $(BUILD_DIR)/%.o: %.c | $(BUILD_DIR)
 	@mkdir -p $(dir $@)
 	@echo "$< derleniyor..."
 	@$(CC) $(CFLAGS) -c $< -o $@
 
-# Create build directory
+# Derleme dizini oluştur
 $(BUILD_DIR):
 	@mkdir -p $(BUILD_DIR)
 
-# Clean build artifacts
+# Derleme dosyalarını temizle
 clean:
 	@echo "Derleme dosyalari temizleniyor..."
 	@rm -rf $(BUILD_DIR)
 	@rm -f $(EXECUTABLE)
 	@echo "Temizlik tamamlandi."
 
-# Help
+# Yardım
 help:
 	@echo "FreeRTOS PC Scheduler Makefile"
 	@echo "Usage: make [target]"
