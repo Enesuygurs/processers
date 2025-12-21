@@ -26,6 +26,9 @@
  *
  */
 
+#ifndef _XOPEN_SOURCE
+#define _XOPEN_SOURCE 700
+#endif
 #include <pthread.h>
 #include <stdlib.h>
 #include <errno.h>
