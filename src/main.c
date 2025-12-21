@@ -1,14 +1,5 @@
-/**
- * @file main_freertos.c
- * @brief FreeRTOS Gorev Siralayici Simulasyonu - Ana Program
- * 
- * 4 Seviyeli Oncelikli Gorevlendirici (Scheduler) Simulasyonu
- * - Seviye 0: Gercek Zamanli (Real-Time) - FCFS algoritmasi
- * - Seviye 1-3: Kullanici Gorevleri - Multi-Level Feedback Queue (MLFQ)
- * 
- * @author Isletim Sistemleri Dersi Projesi
- * @date 2025
- */
+// FreeRTOS Gorev Siralayici - Ana Program
+// RT (FCFS) + Kullanici Gorevleri (MLFQ)
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -16,20 +7,17 @@
 #include <time.h>
 #include <stdarg.h>
 
-/* FreeRTOS header dosyalari */
+// FreeRTOS header dosyalari
 #include "FreeRTOS.h"
 #include "task.h"
 #include "queue.h"
 #include "semphr.h"
 #include "timers.h"
 
-/* Proje header dosyalari */
+// Proje header dosyalari
 #include "scheduler.h"
 
-/*=============================================================================
- * RENK PALETI TANIMLAMASI
- *============================================================================*/
-
+// Renk paleti tanimlamasi
 const char* COLOR_PALETTE[] = {
     "\033[38;5;196m", "\033[38;5;46m",  "\033[38;5;21m",  "\033[38;5;226m",
     "\033[38;5;201m", "\033[38;5;51m",  "\033[38;5;208m", "\033[38;5;129m",
@@ -41,10 +29,7 @@ const char* COLOR_PALETTE[] = {
 };
 #define COLOR_PALETTE_SIZE 25
 
-/*=============================================================================
- * GLOBAL DEGISKENLER
- *============================================================================*/
-
+// Global degiskenler
 TaskInfo g_tasks[MAX_TASKS];
 int g_task_count = 0;
 int g_completed_tasks = 0;
@@ -52,17 +37,14 @@ int g_current_time = 0;
 int g_context_switches = 0;
 static volatile int g_simulation_running = 1;
 
-/* Dinamik kuyruklar - oncelik 0=RT, 1-3=Kullanici */
+// Dinamik kuyruklar: 0=RT, 1-3=Kullanici
 DynamicQueue g_priority_queues[MAX_PRIORITY_LEVEL];
 
-/*=============================================================================
- * ANA SCHEDULER GOREVI
- *============================================================================*/
-
+// Ana scheduler gorevi
 void vSchedulerTask(void* pvParameters) {
     (void)pvParameters;
     
-    /* En son gorev varis zamanini bul */
+    // En son gorev varis zamanini bul
     int last_arrival = 0;
     for (int i = 0; i < g_task_count; i++) {
         if (g_tasks[i].arrival_time > last_arrival) {
@@ -70,50 +52,48 @@ void vSchedulerTask(void* pvParameters) {
         }
     }
     
-    /* Baslangicta gelen gorevleri kontrol et */
+    // Baslangicta gelen gorevleri kontrol et
     check_arriving_tasks();
     
-    /* Ana zamanlama dongusu */
+    // Ana zamanlama dongusu
     while (g_simulation_running) {
         TaskInfo* task_to_run = NULL;
         
-        /* Zamantasimi kontrolu */
+        // Zamantasimi kontrolu
         check_timeouts();
         
-        /* 1. GERCEK ZAMANLI GOREVLERI KONTROL ET (FCFS - tamamlanana kadar calistir) */
+        // 1. RT gorevleri kontrol et (FCFS)
         if (!queue_is_empty(PRIORITY_REALTIME)) {
             task_to_run = queue_remove(PRIORITY_REALTIME);
             
             if (task_to_run != NULL && task_to_run->state != TASK_STATE_TERMINATED) {
-                /* Gorevi baslat - task_start fonksiyonu kullaniliyor */
+                // Gorevi baslat
                 task_start(task_to_run, g_current_time);
                 print_task_status(task_to_run, "basladi");
                 
-                /* RT gorev tamamlanana kadar calistir */
+                // RT gorev tamamlanana kadar calistir
                 while (task_to_run->remaining_time > 0) {
                     vTaskDelay(pdMS_TO_TICKS(TIME_QUANTUM_MS));
                     g_current_time++;
-                    /* task_execute fonksiyonu kullaniliyor */
                     task_execute(task_to_run);
                     task_to_run->last_active_time = g_current_time;
                     
-                    /* Varis kontrolu */
+                    // Varis kontrolu
                     check_arriving_tasks();
                     
-                    /* Gorev devam ediyorsa yurutuluyor mesaji */
+                    // Gorev devam ediyorsa yurutuluyor mesaji
                     if (task_to_run->remaining_time > 0) {
                         print_task_status(task_to_run, "yurutuluyor");
                     }
                     
-                    /* Timeout kontrolu - her iterasyonda, yurutuluyor'dan sonra */
+                    // Timeout kontrolu
                     check_timeouts();
                 }
                 
-                /* RT gorev tamamlandi - task_terminate fonksiyonu kullaniliyor */
+                // RT gorev tamamlandi
                 task_terminate(task_to_run, g_current_time);
                 g_completed_tasks++;
                 print_task_status(task_to_run, "sonlandi");
-                /* Timeout kontrolu (sonlandi'dan sonra) */
                 check_timeouts();
                 
                 g_context_switches++;
@@ -121,10 +101,10 @@ void vSchedulerTask(void* pvParameters) {
             }
         }
         
-        /* 2. KULLANICI GOREVLERINI KONTROL ET (MLFQ) */
+        // 2. Kullanici gorevlerini kontrol et (MLFQ)
         int queue_index = find_highest_priority_queue();
         
-        /* RT kuyruk (0) zaten yukarida islendi */
+        // RT kuyruk zaten yukarida islendi
         if (queue_index == PRIORITY_REALTIME) {
             queue_index = -1;
             for (int i = PRIORITY_HIGH; i < MAX_PRIORITY_LEVEL; i++) {
@@ -148,7 +128,7 @@ void vSchedulerTask(void* pvParameters) {
                     task_execute(task_to_run);
                     task_to_run->last_active_time = g_current_time;
 
-                    /* Yeni gelenleri ekle */
+                    // Yeni gelenleri ekle
                     check_arriving_tasks();
 
                     if (task_to_run->remaining_time == 0) {
@@ -158,10 +138,10 @@ void vSchedulerTask(void* pvParameters) {
                         break;
                     }
 
-                    /* Oncelik dusur (her quantum) */
+                    // Oncelik dusur (her quantum)
                     demote_priority(task_to_run);
 
-                    /* Daha yuksek oncelikli varsa veya ayni oncelikte bekleyen varsa kes */
+                    // Daha yuksek oncelikli varsa kes
                     int hpq = find_highest_priority_queue();
                     int preempt = 0;
                     if (hpq != -1 && hpq < task_to_run->current_priority) preempt = 1;
@@ -174,7 +154,7 @@ void vSchedulerTask(void* pvParameters) {
                         queue_add(task_to_run->current_priority, task_to_run);
                         break;
                     } else {
-                        /* Kesinti yoksa calismaya devam ediyor */
+                        // Kesinti yoksa calismaya devam ediyor
                         print_task_status(task_to_run, "yurutuluyor");
                     }
                 }
@@ -184,12 +164,12 @@ void vSchedulerTask(void* pvParameters) {
             }
         }
         
-        /* 3. CALISTIRILACAK GOREV YOK */
+        // 3. Calistirilacak gorev yok
         if (g_completed_tasks >= g_task_count) {
             break;
         }
         
-        /* Bekleme - yeni gorevlerin gelmesini bekle */
+        // Bekleme - yeni gorevlerin gelmesini bekle
         if (g_current_time <= last_arrival + MAX_TASK_TIME + 10) {
             vTaskDelay(pdMS_TO_TICKS(TIME_QUANTUM_MS));
             g_current_time++;
@@ -202,23 +182,19 @@ void vSchedulerTask(void* pvParameters) {
     
     g_simulation_running = 0;
     
-    /* Simulasyonu sonlandir */
+    // Simulasyonu sonlandir
     vTaskEndScheduler();
 }
 
-/*=============================================================================
- * FREERTOS HOOK FONKSIYONLARI
- *============================================================================*/
+// FreeRTOS hook fonksiyonlari
 
 void vApplicationIdleHook(void) {
-    /* Bos */
 }
 
 void vApplicationTickHook(void) {
-    /* Bos */
 }
 
-/* Static allocation icin gerekli */
+// Static allocation icin gerekli
 static StaticTask_t xIdleTaskTCBBuffer;
 static StackType_t xIdleStack[configMINIMAL_STACK_SIZE];
 
@@ -241,10 +217,7 @@ void vApplicationGetTimerTaskMemory(StaticTask_t **ppxTimerTaskTCBBuffer,
     *pulTimerTaskStackSize = configMINIMAL_STACK_SIZE * 2;
 }
 
-/*=============================================================================
- * ANA FONKSIYON
- *============================================================================*/
-
+// Ana fonksiyon
 int main(int argc, char* argv[]) {
     if (argc < 2) {
         printf("Kullanim: %s <giris_dosyasi>\n", argv[0]);
@@ -252,16 +225,16 @@ int main(int argc, char* argv[]) {
         return 1;
     }
     
-    /* Kuyruklari baslat */
+    // Kuyruklari baslat
     init_queues();
     
-    /* Gorevleri dosyadan yukle */
+    // Gorevleri dosyadan yukle
     if (load_tasks_from_file(argv[1]) <= 0) {
         printf("[HATA] Gorev yuklenemedi!\n");
         return 1;
     }
     
-    /* Scheduler gorevini olustur */
+    // Scheduler gorevini olustur
     xTaskCreate(
         vSchedulerTask,
         "Scheduler",
@@ -271,9 +244,8 @@ int main(int argc, char* argv[]) {
         NULL
     );
     
-    /* FreeRTOS scheduler'i baslat */
+    // FreeRTOS scheduler'i baslat
     vTaskStartScheduler();
     
-    /* Scheduler sonlandi - normal cikis */
     return 0;
 }

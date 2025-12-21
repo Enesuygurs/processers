@@ -1,21 +1,8 @@
-/**
- * @file scheduler.c
- * @brief 4 Seviyeli Oncelikli Gorev Siralayici (Scheduler) Implementasyonu
- * 
- * FreeRTOS kullanarak 4 seviyeli oncelik sistemi implementasyonu
- * - Seviye 0: Gercek Zamanli (Real-Time) - FCFS algoritmasi
- * - Seviye 1-3: Kullanici Gorevleri - Multi-Level Feedback Queue (MLFQ)
- * 
- * @author Isletim Sistemleri Dersi Projesi
- * @date 2025
- */
+// 4 Seviyeli Scheduler: RT (FCFS) + Kullanici Gorevleri (MLFQ)
 
 #include "scheduler.h"
 
-/*=============================================================================
- * EXTERN DEGISKENLER (main.c'de tanimlandi)
- *============================================================================*/
-
+// Extern degiskenler (main.c'de tanimlandi)
 extern TaskInfo g_tasks[MAX_TASKS];
 extern int g_task_count;
 extern int g_completed_tasks;
@@ -24,10 +11,7 @@ extern int g_context_switches;
 extern DynamicQueue g_priority_queues[MAX_PRIORITY_LEVEL];
 extern const char* COLOR_PALETTE[];
 
-/*=============================================================================
- * KUYRUK FONKSIYONLARI
- *============================================================================*/
-
+// Kuyruk fonksiyonlari
 void init_queues(void) {
     for (int i = 0; i < MAX_PRIORITY_LEVEL; i++) {
         g_priority_queues[i].count = 0;
@@ -42,7 +26,7 @@ void queue_add(int priority, TaskInfo* task) {
     DynamicQueue* q = &g_priority_queues[priority];
     if (q->count >= MAX_TASKS) return;
 
-    /* Insert ordered by last_active_time (older first), then task_id */
+    // Sirali ekleme: last_active_time (eski once), sonra task_id
     int pos = q->count;
     while (pos > 0) {
         TaskInfo* prev = q->tasks[pos - 1];
@@ -60,7 +44,7 @@ TaskInfo* queue_remove(int priority) {
     if (priority < 0 || priority >= MAX_PRIORITY_LEVEL) return NULL;
     DynamicQueue* q = &g_priority_queues[priority];
     
-    /* Terminated gorevleri atla */
+    // Sonlanmis gorevleri atla
     while (q->count > 0 && q->tasks[0] != NULL && q->tasks[0]->state == TASK_STATE_TERMINATED) {
         for (int i = 0; i < q->count - 1; i++) {
             q->tasks[i] = q->tasks[i + 1];
@@ -91,10 +75,7 @@ int find_highest_priority_queue(void) {
     return -1;
 }
 
-/*=============================================================================
- * YARDIMCI FONKSIYONLAR
- *============================================================================*/
-
+// Yardimci fonksiyonlar
 void print_task_status(TaskInfo* task, const char* status) {
     if (task == NULL) return;
     printf("%s%7.4f sn %-8s %-12s (id:%04d oncelik:%d kalan sure:%2d sn)%s\n",
@@ -109,10 +90,7 @@ void print_task_status(TaskInfo* task, const char* status) {
     fflush(stdout);
 }
 
-/*=============================================================================
- * GOREV YONETIM FONKSIYONLARI
- *============================================================================*/
-
+// Gorev yonetim fonksiyonlari
 void check_arriving_tasks(void) {
     for (int i = 0; i < g_task_count; i++) {
         TaskInfo* task = &g_tasks[i];
@@ -131,11 +109,11 @@ void check_timeouts(void) {
         if (task->state == TASK_STATE_TERMINATED) continue;
         if (task->timeout_printed) continue;
         if (task->state == TASK_STATE_WAITING) continue;
-        if (task->state == TASK_STATE_RUNNING) continue;  /* Calisan gorev timeout olmaz */
+        if (task->state == TASK_STATE_RUNNING) continue;  // Calisan gorev timeout olmaz
         
         int timeout_time;
         
-        /* last_active_time, arrival_time ile baslatilir ve her calistiginda guncellenir */
+        // last_active_time her calistiginda guncellenir
         timeout_time = task->last_active_time + MAX_TASK_TIME;
         
         if (g_current_time >= timeout_time) {
@@ -151,16 +129,13 @@ void demote_priority(TaskInfo* task) {
     if (task == NULL) return;
     if (task->type == TASK_TYPE_REALTIME) return;
     
-    /* MLFQ: kullanici gorevlerinde onceligi bir tik dusur, ancak alt siniri asma */
+    // MLFQ: kullanici gorevlerinde onceligi bir seviye dusur
     if (task->current_priority < PRIORITY_LOW) {
         task->current_priority++;
     }
 }
 
-/*=============================================================================
- * DOSYA ISLEMLERI
- *============================================================================*/
-
+// Dosya islemleri
 int load_tasks_from_file(const char* filename) {
     FILE* file = fopen(filename, "r");
     if (file == NULL) {
@@ -184,7 +159,7 @@ int load_tasks_from_file(const char* filename) {
             TaskInfo* task = &g_tasks[task_id];
 
             task->task_id = task_id;
-            /* Beklenen isimlendirme haritasi (guncel 12'li veri seti icin) */
+            // Gorev isimlendirme haritasi
             static const int name_map[12] = { 1, 2, 9, 3, 4, 5, 11, 6, 7, 8, 12, 10 };
             if (task_id < (int)(sizeof(name_map)/sizeof(name_map[0]))) {
                 snprintf(task->task_name, sizeof(task->task_name), "task%d", name_map[task_id]);
