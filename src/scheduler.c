@@ -97,7 +97,7 @@ int find_highest_priority_queue(void) {
 
 void print_task_status(TaskInfo* task, const char* status) {
     if (task == NULL) return;
-    printf("%s%.4f sn %s %s (id:%04d oncelik:%d kalan sure:%d sn)%s\n",
+    printf("%s%7.4f sn %-8s %-12s (id:%04d oncelik:%d kalan sure:%2d sn)%s\n",
            task->color_code,
            (float)g_current_time,
            task->task_name,
